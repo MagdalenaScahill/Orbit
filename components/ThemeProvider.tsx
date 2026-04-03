@@ -17,6 +17,7 @@ export interface ThemeColors {
   nodeColors: Record<string, string>;
   flowBg: string;
   flowDot: string;
+  nodeLabelShadow?: string;
 }
 
 export const themes: Record<string, ThemeColors> = {
@@ -33,9 +34,10 @@ export const themes: Record<string, ThemeColors> = {
     inputBg: '#1e293b',
     success: '#22c55e',
     danger: '#f87171',
-    nodeColors: { person: '#6366f1', project: '#22d3ee', event: '#f59e0b', default: '#8b5cf6' },
+    nodeColors: { person: '#818cf8', project: '#22d3ee', event: '#fbbf24', default: '#a78bfa' },
     flowBg: '#0f172a',
-    flowDot: '#1e293b',
+    flowDot: '#334155',
+    nodeLabelShadow: '0 1px 4px rgba(0,0,0,0.8)',
   },
   aurora: {
     name: '🌌 Aurora',
@@ -53,6 +55,7 @@ export const themes: Record<string, ThemeColors> = {
     nodeColors: { person: '#58a6ff', project: '#3fb950', event: '#d2a8ff', default: '#79c0ff' },
     flowBg: '#0d1117',
     flowDot: '#21262d',
+    nodeLabelShadow: '0 1px 4px rgba(0,0,0,0.9)',
   },
   obsidian: {
     name: '⬛ Obsidian',
@@ -69,7 +72,8 @@ export const themes: Record<string, ThemeColors> = {
     danger: '#f87171',
     nodeColors: { person: '#a78bfa', project: '#34d399', event: '#fbbf24', default: '#c084fc' },
     flowBg: '#18181b',
-    flowDot: '#27272a',
+    flowDot: '#3f3f46',
+    nodeLabelShadow: '0 1px 4px rgba(0,0,0,0.9)',
   },
   forest: {
     name: '🌲 Forest',
@@ -86,7 +90,8 @@ export const themes: Record<string, ThemeColors> = {
     danger: '#f87171',
     nodeColors: { person: '#34d399', project: '#6ee7b7', event: '#fde68a', default: '#a7f3d0' },
     flowBg: '#0a1628',
-    flowDot: '#112233',
+    flowDot: '#1a3344',
+    nodeLabelShadow: '0 1px 4px rgba(0,0,0,0.9)',
   },
   rose: {
     name: '🌸 Rose',
@@ -103,7 +108,26 @@ export const themes: Record<string, ThemeColors> = {
     danger: '#fca5a5',
     nodeColors: { person: '#f472b6', project: '#c084fc', event: '#fb923c', default: '#e879f9' },
     flowBg: '#1a0a14',
-    flowDot: '#2d1525',
+    flowDot: '#4a1f38',
+    nodeLabelShadow: '0 1px 4px rgba(0,0,0,0.9)',
+  },
+  daylight: {
+    name: '☀️ Daylight',
+    bg: '#f8fafc',
+    panelBg: '#ffffff',
+    cardBg: '#f1f5f9',
+    border: '#e2e8f0',
+    text: '#0f172a',
+    textMuted: '#64748b',
+    accent: '#6366f1',
+    accentMuted: '#e0e7ff',
+    inputBg: '#f1f5f9',
+    success: '#16a34a',
+    danger: '#dc2626',
+    nodeColors: { person: '#6366f1', project: '#0891b2', event: '#d97706', default: '#7c3aed' },
+    flowBg: '#f8fafc',
+    flowDot: '#cbd5e1',
+    nodeLabelShadow: '0 1px 2px rgba(255,255,255,0.8)',
   },
 };
 
