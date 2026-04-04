@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase, SupabaseUser } from '@/lib/supabase';
+import { syncOnLogin } from '@/lib/sync';
 import { useTheme } from './ThemeProvider';
 
 export function AuthButton() {
@@ -18,6 +19,10 @@ export function AuthButton() {
     // 监听登录/登出变化
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      // 登录成功后触发同步
+      if (_event === 'SIGNED_IN' && session?.user) {
+        syncOnLogin().catch(console.error);
+      }
     });
 
     return () => subscription.unsubscribe();
