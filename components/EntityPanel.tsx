@@ -1,6 +1,7 @@
 'use client';
 import { X, Trash2, Pencil, Check } from 'lucide-react';
 import { Node, deleteNode, deleteLog, db } from '@/lib/db';
+import { debouncedSync } from '@/lib/sync';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
 import { useTheme } from './ThemeProvider';
@@ -34,18 +35,21 @@ export function EntityPanel({ node, onClose, onNodeDeleted }: EntityPanelProps) 
       await db.nodes.update(node.id, { metadata: { ...node.metadata, [editing]: editValue } });
     }
     setEditing(null);
+    debouncedSync();
   };
 
   const handleDeleteNode = async () => {
     if (!node) return;
     if (!confirm(`确定删除节点 "${node.label}" 吗？这将删除所有相关连接。`)) return;
     await deleteNode(node.id);
+    debouncedSync();
     onClose();
     onNodeDeleted?.();
   };
 
   const handleDeleteLog = async (logId: string) => {
     await deleteLog(logId);
+    debouncedSync();
   };
 
   return (

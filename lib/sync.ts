@@ -1,6 +1,16 @@
 import { supabase } from './supabase';
 import { db, Node, Edge, Log } from './db';
 
+// Debounced 版本的 syncToCloud，2秒内多次调用只执行一次
+let syncTimer: ReturnType<typeof setTimeout> | null = null;
+export function debouncedSync() {
+  if (syncTimer) clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => {
+    syncToCloud().catch(console.error);
+    syncTimer = null;
+  }, 2000);
+}
+
 // 获取当前登录用户
 async function getCurrentUser() {
   const { data: { user } } = await supabase.auth.getUser();

@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '@/lib/db';
+import { debouncedSync } from '@/lib/sync';
 import { Send, Image, Mic, Video, X } from 'lucide-react';
 import { useTheme } from './ThemeProvider';
 
@@ -74,6 +75,7 @@ export function CommandBar({ onNewNode }: CommandBarProps) {
     setInput('');
     setAttachments([]);
     onNewNode();
+    debouncedSync();
   };
 
   return (

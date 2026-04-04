@@ -7,6 +7,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, Node, deleteNode, deleteEdge } from '@/lib/db';
+import { debouncedSync } from '@/lib/sync';
 import { CustomNode } from './CustomNode';
 import { CommandBar } from './CommandBar';
 import { EntityPanel } from './EntityPanel';
@@ -64,6 +65,7 @@ export function OrbitGraph() {
 
   const onNodeDragStop = useCallback((_: unknown, node: { id: string; position: { x: number; y: number } }) => {
     db.nodes.update(node.id, { position: node.position });
+    debouncedSync();
   }, []);
 
   const onNodeClick = useCallback((_: unknown, node: { data: Node }) => {
@@ -72,10 +74,12 @@ export function OrbitGraph() {
 
   const onNodesDelete = useCallback(async (nodesToDelete: { id: string }[]) => {
     for (const node of nodesToDelete) await deleteNode(node.id);
+    debouncedSync();
   }, []);
 
   const onEdgesDelete = useCallback(async (edgesToDelete: { id: string }[]) => {
     for (const edge of edgesToDelete) await deleteEdge(edge.id);
+    debouncedSync();
   }, []);
 
   const handleExport = async () => {
