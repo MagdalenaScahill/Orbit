@@ -10,6 +10,7 @@ import { db, Node, deleteNode, deleteEdge } from '@/lib/db';
 import { CustomNode } from './CustomNode';
 import { CommandBar } from './CommandBar';
 import { EntityPanel } from './EntityPanel';
+import { AuthButton } from './AuthButton';
 import { initMockData } from '@/lib/initData';
 import { Download, Upload, Search, Palette } from 'lucide-react';
 import { useTheme, themes } from './ThemeProvider';
@@ -181,6 +182,11 @@ export function OrbitGraph() {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Auth */}
+          <div className="ml-2 pl-2" style={{ borderLeft: `1px solid ${theme.border}` }}>
+            <AuthButton />
           </div>
         </div>
       </div>
