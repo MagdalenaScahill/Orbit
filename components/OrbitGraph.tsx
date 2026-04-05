@@ -29,6 +29,7 @@ export function OrbitGraph() {
 
   const dbNodes = useLiveQuery(() => db.nodes.toArray());
   const dbEdges = useLiveQuery(() => db.edges.toArray());
+  const dbLogs = useLiveQuery(() => db.logs.toArray());
 
   useEffect(() => { initMockData(); }, []);
 
@@ -56,12 +57,59 @@ export function OrbitGraph() {
 
   useEffect(() => {
     if (dbEdges) {
-      setEdges(dbEdges.map(e => ({
-        id: e.id, source: e.source, target: e.target,
-        label: e.label, selectable: true, deletable: true
-      })));
+      // Build strength map: count logs that mention BOTH ends of each edge
+      const strengthMap: Record<string, number> = {};
+      if (dbLogs) {
+        for (const edge of dbEdges) {
+          const count = dbLogs.filter(
+            log =>
+              log.mentionedNodes.includes(edge.source) &&
+              log.mentionedNodes.includes(edge.target)
+          ).length;
+          strengthMap[edge.id] = count;
+        }
+      }
+
+      // Max strength for normalization
+      const maxStrength = Math.max(1, ...Object.values(strengthMap));
+
+      setEdges(dbEdges.map(e => {
+        const strength = strengthMap[e.id] ?? 0;
+        const ratio = strength / maxStrength; // 0~1
+
+        // Stroke width: 1.5 (weak) → 5 (strong)
+        const strokeWidth = 1.5 + ratio * 3.5;
+
+        // Color: muted gray → vivid accent (lerp in HSL-ish hex via opacity on accent)
+        // Use theme.accent with opacity for weak, full accent for strong
+        const opacity = 0.25 + ratio * 0.75;
+        const stroke = theme.accent;
+
+        return {
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          label: strength > 0 ? `${strength}` : undefined,
+          selectable: true,
+          deletable: true,
+          style: {
+            strokeWidth,
+            stroke,
+            opacity,
+          },
+          labelStyle: {
+            fontSize: 10,
+            fill: theme.textMuted,
+            fontWeight: 500,
+          },
+          labelBgStyle: {
+            fill: theme.panelBg,
+            fillOpacity: 0.85,
+          },
+        };
+      }));
     }
-  }, [dbEdges, setEdges]);
+  }, [dbEdges, dbLogs, setEdges, theme.accent, theme.textMuted, theme.panelBg]);
 
   const onNodeDragStop = useCallback((_: unknown, node: { id: string; position: { x: number; y: number } }) => {
     db.nodes.update(node.id, { position: node.position });
