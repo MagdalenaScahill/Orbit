@@ -9,14 +9,14 @@ import { MentionDropdown, MentionOption } from './MentionDropdown';
 
 interface CommandBarProps {
   onNewNode: () => void;
-  canAddNode?: () => boolean; // returns false if paywall should block
+  canAddNode?: () => boolean;
 }
 
 interface MentionState {
   active: boolean;
   triggerChar: '@' | '#';
   query: string;
-  triggerIndex: number; // cursor position where @ or # was typed
+  triggerIndex: number;
 }
 
 const DEFAULT_MENTION: MentionState = {
@@ -32,7 +32,13 @@ export function CommandBar({ onNewNode, canAddNode }: CommandBarProps) {
   const [mention, setMention] = useState<MentionState>(DEFAULT_MENTION);
   const [mentionOptions, setMentionOptions] = useState<MentionOption[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Use refs to always have latest values inside handleSubmit (avoids stale closures)
+  const inputRef = useRef(input);
+  const attachmentsRef = useRef(attachments);
   const { theme } = useTheme();
+
+  useEffect(() => { inputRef.current = input; }, [input]);
+  useEffect(() => { attachmentsRef.current = attachments; }, [attachments]);
 
   // Whenever mention query changes, search DB
   useEffect(() => {
@@ -57,15 +63,16 @@ export function CommandBar({ onNewNode, canAddNode }: CommandBarProps) {
     search();
   }, [mention]);
 
-  const handleInputChange = useCallback(async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     const cursor = e.target.selectionStart ?? val.length;
     setInput(val);
 
-    // Find the last @ or # before cursor
+    // Find last @ or # before cursor — allow @ at position 0 (no leading space required)
     const textBeforeCursor = val.slice(0, cursor);
-    const atMatch = textBeforeCursor.match(/(?:^|[\s,，])(@)([\w\u4e00-\u9fa5]*)$/);
-    const hashMatch = textBeforeCursor.match(/(?:^|[\s,，])(#)([\w\u4e00-\u9fa5]*)$/);
+    // Match @ or # that is either at start or preceded by whitespace/punctuation
+    const atMatch = textBeforeCursor.match(/(^|[\s,，])@([\w\u4e00-\u9fa5]*)$/);
+    const hashMatch = textBeforeCursor.match(/(^|[\s,，])#([\w\u4e00-\u9fa5]*)$/);
 
     if (atMatch) {
       const triggerIdx = textBeforeCursor.lastIndexOf('@');
@@ -79,14 +86,13 @@ export function CommandBar({ onNewNode, canAddNode }: CommandBarProps) {
   }, []);
 
   const handleMentionSelect = useCallback((opt: MentionOption) => {
-    // Replace the partial @query / #query with the full label
-    const before = input.slice(0, mention.triggerIndex + 1); // keep the @ or #
-    const after = input.slice(mention.triggerIndex + 1 + mention.query.length);
-    const newInput = before + opt.label + ' ' + after;
-    setInput(newInput);
+    setInput(prev => {
+      const before = prev.slice(0, mention.triggerIndex + 1); // include @ or #
+      const after = prev.slice(mention.triggerIndex + 1 + mention.query.length);
+      return before + opt.label + ' ' + after;
+    });
     setMention(DEFAULT_MENTION);
     setMentionOptions([]);
-    // Restore focus
     setTimeout(() => {
       if (textareaRef.current) {
         const pos = mention.triggerIndex + 1 + opt.label.length + 1;
@@ -94,49 +100,23 @@ export function CommandBar({ onNewNode, canAddNode }: CommandBarProps) {
         textareaRef.current.setSelectionRange(pos, pos);
       }
     }, 0);
-  }, [input, mention]);
+  }, [mention.triggerIndex, mention.query.length]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // If dropdown open, let Escape close it
-    if (mention.active && e.key === 'Escape') {
-      setMention(DEFAULT_MENTION);
+  // Use ref-based submit to avoid stale closure in handleKeyDown
+  const handleSubmit = useCallback(async () => {
+    const currentInput = inputRef.current;
+    const currentAttachments = attachmentsRef.current;
+    if (!currentInput.trim()) return;
+
+    if (canAddNode && !canAddNode()) {
+      onNewNode();
       return;
     }
-    if (e.key === 'Enter' && !e.shiftKey && !mention.active) {
-      e.preventDefault();
-      handleSubmit();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mention.active, input, attachments]);
 
-  const parseInput = (text: string) => {
     const personRegex = /@([\w\u4e00-\u9fa5]+)/g;
     const tagRegex = /#([\w\u4e00-\u9fa5]+)/g;
-    const persons = [...text.matchAll(personRegex)].map(m => m[1]);
-    const tags = [...text.matchAll(tagRegex)].map(m => m[1]);
-    return { persons, tags };
-  };
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'audio' | 'video') => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setAttachments([...attachments, { type, data: reader.result as string, name: file.name }]);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleSubmit = async () => {
-    if (!input.trim()) return;
-
-    // Paywall check — if canAddNode returns false, abort and let parent show modal
-    if (canAddNode && !canAddNode()) {
-      onNewNode(); // triggers paywall in parent
-      return;
-    }
-
-    const { persons, tags } = parseInput(input);
+    const persons = [...currentInput.matchAll(personRegex)].map(m => m[1]);
+    const tags = [...currentInput.matchAll(tagRegex)].map(m => m[1]);
     const mentionedNodeIds: string[] = [];
 
     for (const person of persons) {
@@ -167,10 +147,10 @@ export function CommandBar({ onNewNode, canAddNode }: CommandBarProps) {
 
     await db.logs.add({
       id: uuidv4(),
-      rawText: input,
+      rawText: currentInput,
       mentionedNodes: mentionedNodeIds,
       timestamp: Date.now(),
-      attachments: attachments.length > 0 ? attachments : undefined
+      attachments: currentAttachments.length > 0 ? currentAttachments : undefined
     });
 
     setInput('');
@@ -178,6 +158,29 @@ export function CommandBar({ onNewNode, canAddNode }: CommandBarProps) {
     setMention(DEFAULT_MENTION);
     onNewNode();
     debouncedSync();
+  }, [canAddNode, onNewNode]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (mention.active && e.key === 'Escape') {
+      e.preventDefault();
+      setMention(DEFAULT_MENTION);
+      return;
+    }
+    // Enter without Shift submits; but not when dropdown is open
+    if (e.key === 'Enter' && !e.shiftKey && !mention.active) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  }, [mention.active, handleSubmit]);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'audio' | 'video') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAttachments(prev => [...prev, { type, data: reader.result as string, name: file.name }]);
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -198,7 +201,7 @@ export function CommandBar({ onNewNode, canAddNode }: CommandBarProps) {
               {att.type === 'video' && <Video className="w-3.5 h-3.5" />}
               <span className="max-w-[100px] truncate">{att.name}</span>
               <button
-                onClick={() => setAttachments(attachments.filter((_, idx) => idx !== i))}
+                onClick={() => setAttachments(prev => prev.filter((_, idx) => idx !== i))}
                 style={{ color: theme.danger }}
                 className="hover:opacity-80"
               >

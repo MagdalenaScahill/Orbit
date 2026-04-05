@@ -22,7 +22,7 @@ import { FREE_NODE_LIMIT } from '@/lib/pro';
 const nodeTypes: NodeTypes = { custom: CustomNode };
 
 export function OrbitGraph() {
-  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -35,6 +35,11 @@ export function OrbitGraph() {
   const dbNodes = useLiveQuery(() => db.nodes.toArray());
   const dbEdges = useLiveQuery(() => db.edges.toArray());
   const dbLogs = useLiveQuery(() => db.logs.toArray());
+
+  // Always derive selectedNode from live dbNodes — stays fresh after edits
+  const selectedNode = selectedNodeId
+    ? (dbNodes?.find(n => n.id === selectedNodeId) ?? null)
+    : null;
 
   useEffect(() => { initMockData(); }, []);
 
@@ -122,7 +127,7 @@ export function OrbitGraph() {
   }, []);
 
   const onNodeClick = useCallback((_: unknown, node: { data: Node }) => {
-    setSelectedNode(node.data);
+    setSelectedNodeId(node.data.id);
   }, []);
 
   const onNodesDelete = useCallback(async (nodesToDelete: { id: string }[]) => {
@@ -298,8 +303,8 @@ export function OrbitGraph() {
         >
           <EntityPanel
             node={selectedNode}
-            onClose={() => setSelectedNode(null)}
-            onNodeDeleted={() => setSelectedNode(null)}
+            onClose={() => setSelectedNodeId(null)}
+            onNodeDeleted={() => setSelectedNodeId(null)}
           />
         </div>
       </div>
