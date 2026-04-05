@@ -7,7 +7,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, Node, deleteNode, deleteEdge } from '@/lib/db';
-import { debouncedSync } from '@/lib/sync';
+import { debouncedSync, syncOnLogin } from '@/lib/sync';
 import { CustomNode } from './CustomNode';
 import { CommandBar } from './CommandBar';
 import { EntityPanel } from './EntityPanel';
@@ -31,6 +31,11 @@ export function OrbitGraph() {
   const { setCenter } = useReactFlow();
   const { theme, themeName, setThemeName } = useTheme();
   const { isPro } = useProStatus();
+
+  // 页面加载时同步
+  useEffect(() => {
+    syncOnLogin().catch(console.error);
+  }, []);
 
   const dbNodes = useLiveQuery(() => db.nodes.toArray());
   const dbEdges = useLiveQuery(() => db.edges.toArray());
