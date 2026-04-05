@@ -1,22 +1,115 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '@/lib/db';
 import { debouncedSync } from '@/lib/sync';
 import { Send, Image, Mic, Video, X } from 'lucide-react';
 import { useTheme } from './ThemeProvider';
+import { MentionDropdown, MentionOption } from './MentionDropdown';
 
 interface CommandBarProps {
   onNewNode: () => void;
 }
 
+interface MentionState {
+  active: boolean;
+  triggerChar: '@' | '#';
+  query: string;
+  triggerIndex: number; // cursor position where @ or # was typed
+}
+
+const DEFAULT_MENTION: MentionState = {
+  active: false,
+  triggerChar: '@',
+  query: '',
+  triggerIndex: -1,
+};
+
 export function CommandBar({ onNewNode }: CommandBarProps) {
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<Array<{ type: 'image' | 'audio' | 'video'; data: string; name: string }>>([]);
+  const [mention, setMention] = useState<MentionState>(DEFAULT_MENTION);
+  const [mentionOptions, setMentionOptions] = useState<MentionOption[]>([]);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { theme } = useTheme();
 
+  // Whenever mention query changes, search DB
+  useEffect(() => {
+    if (!mention.active) {
+      setMentionOptions([]);
+      return;
+    }
+    const search = async () => {
+      const q = mention.query.toLowerCase();
+      let nodes;
+      if (mention.triggerChar === '@') {
+        nodes = await db.nodes.where('type').equals('person').toArray();
+      } else {
+        nodes = await db.nodes.filter(n => n.type === 'project' || n.type === 'tag').toArray();
+      }
+      const filtered = nodes
+        .filter(n => q === '' || n.label.toLowerCase().includes(q))
+        .slice(0, 8)
+        .map(n => ({ id: n.id, label: n.label, type: n.type }));
+      setMentionOptions(filtered);
+    };
+    search();
+  }, [mention]);
+
+  const handleInputChange = useCallback(async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    const cursor = e.target.selectionStart ?? val.length;
+    setInput(val);
+
+    // Find the last @ or # before cursor
+    const textBeforeCursor = val.slice(0, cursor);
+    const atMatch = textBeforeCursor.match(/(?:^|[\s,，])(@)([\w\u4e00-\u9fa5]*)$/);
+    const hashMatch = textBeforeCursor.match(/(?:^|[\s,，])(#)([\w\u4e00-\u9fa5]*)$/);
+
+    if (atMatch) {
+      const triggerIdx = textBeforeCursor.lastIndexOf('@');
+      setMention({ active: true, triggerChar: '@', query: atMatch[2], triggerIndex: triggerIdx });
+    } else if (hashMatch) {
+      const triggerIdx = textBeforeCursor.lastIndexOf('#');
+      setMention({ active: true, triggerChar: '#', query: hashMatch[2], triggerIndex: triggerIdx });
+    } else {
+      setMention(DEFAULT_MENTION);
+    }
+  }, []);
+
+  const handleMentionSelect = useCallback((opt: MentionOption) => {
+    // Replace the partial @query / #query with the full label
+    const before = input.slice(0, mention.triggerIndex + 1); // keep the @ or #
+    const after = input.slice(mention.triggerIndex + 1 + mention.query.length);
+    const newInput = before + opt.label + ' ' + after;
+    setInput(newInput);
+    setMention(DEFAULT_MENTION);
+    setMentionOptions([]);
+    // Restore focus
+    setTimeout(() => {
+      if (textareaRef.current) {
+        const pos = mention.triggerIndex + 1 + opt.label.length + 1;
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(pos, pos);
+      }
+    }, 0);
+  }, [input, mention]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // If dropdown open, let Escape close it
+    if (mention.active && e.key === 'Escape') {
+      setMention(DEFAULT_MENTION);
+      return;
+    }
+    if (e.key === 'Enter' && !e.shiftKey && !mention.active) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mention.active, input, attachments]);
+
   const parseInput = (text: string) => {
-    const personRegex = /@(\w+)/g;
+    const personRegex = /@([\w\u4e00-\u9fa5]+)/g;
     const tagRegex = /#([\w\u4e00-\u9fa5]+)/g;
     const persons = [...text.matchAll(personRegex)].map(m => m[1]);
     const tags = [...text.matchAll(tagRegex)].map(m => m[1]);
@@ -74,6 +167,7 @@ export function CommandBar({ onNewNode }: CommandBarProps) {
 
     setInput('');
     setAttachments([]);
+    setMention(DEFAULT_MENTION);
     onNewNode();
     debouncedSync();
   };
@@ -106,11 +200,24 @@ export function CommandBar({ onNewNode }: CommandBarProps) {
           ))}
         </div>
       )}
-      <div className="flex gap-2 items-end">
+      <div className="flex gap-2 items-end relative">
+        {/* Mention dropdown — positioned above textarea */}
+        {mention.active && (
+          <div className="absolute left-0 right-12 bottom-full">
+            <MentionDropdown
+              options={mentionOptions}
+              onSelect={handleMentionSelect}
+              onClose={() => setMention(DEFAULT_MENTION)}
+              anchorRef={textareaRef}
+              triggerChar={mention.triggerChar}
+            />
+          </div>
+        )}
         <textarea
+          ref={textareaRef}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
           placeholder="今天和 @Alex 讨论了 #重构项目 的进展..."
           className="flex-1 p-2.5 rounded-lg resize-none focus:outline-none text-sm leading-relaxed"
           style={{
