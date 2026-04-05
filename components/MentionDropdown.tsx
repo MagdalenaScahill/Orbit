@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTheme } from './ThemeProvider';
 
 export interface MentionOption {
@@ -10,16 +10,16 @@ export interface MentionOption {
 
 interface MentionDropdownProps {
   options: MentionOption[];
+  loading?: boolean;
   onSelect: (option: MentionOption) => void;
   onClose: () => void;
   anchorRef: React.RefObject<HTMLTextAreaElement | null>;
   triggerChar: '@' | '#';
 }
 
-export function MentionDropdown({ options, onSelect, onClose, anchorRef, triggerChar }: MentionDropdownProps) {
+export function MentionDropdown({ options, loading, onSelect, onClose, anchorRef, triggerChar }: MentionDropdownProps) {
   const { theme } = useTheme();
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const selectedRef = useRef<number>(0);
 
   // Close on outside click
   useEffect(() => {
@@ -36,8 +36,6 @@ export function MentionDropdown({ options, onSelect, onClose, anchorRef, trigger
     return () => document.removeEventListener('mousedown', handleClick);
   }, [onClose, anchorRef]);
 
-  if (options.length === 0) return null;
-
   const typeColor = (type: string) => {
     if (type === 'person') return theme.accent;
     if (type === 'project') return theme.success ?? '#22c55e';
@@ -50,6 +48,7 @@ export function MentionDropdown({ options, onSelect, onClose, anchorRef, trigger
     return '标签';
   };
 
+  // Always render the container when active — show loading or empty state
   return (
     <div
       ref={dropdownRef}
@@ -70,34 +69,42 @@ export function MentionDropdown({ options, onSelect, onClose, anchorRef, trigger
       >
         {triggerChar === '@' ? '提及联系人' : '添加标签'}
       </div>
-      {options.map((opt, i) => (
-        <button
-          key={opt.id}
-          className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors hover:opacity-90"
-          style={{
-            background: i === selectedRef.current ? theme.cardBg : 'transparent',
-            color: theme.text,
-          }}
-          onMouseEnter={e => {
-            (e.currentTarget as HTMLElement).style.background = theme.cardBg;
-          }}
-          onMouseLeave={e => {
-            (e.currentTarget as HTMLElement).style.background = 'transparent';
-          }}
-          onMouseDown={e => {
-            e.preventDefault(); // prevent textarea blur
-            onSelect(opt);
-          }}
-        >
-          <span
-            className="text-xs px-1.5 py-0.5 rounded-md font-medium shrink-0"
-            style={{ background: typeColor(opt.type) + '22', color: typeColor(opt.type) }}
+
+      {loading ? (
+        <div className="px-3 py-2 text-xs" style={{ color: theme.textMuted }}>
+          搜索中...
+        </div>
+      ) : options.length === 0 ? (
+        <div className="px-3 py-2 text-xs" style={{ color: theme.textMuted }}>
+          {triggerChar === '@' ? '没有找到联系人，输入后回车新建' : '没有找到标签，输入后回车新建'}
+        </div>
+      ) : (
+        options.map((opt) => (
+          <button
+            key={opt.id}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors"
+            style={{ color: theme.text }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLElement).style.background = theme.cardBg;
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLElement).style.background = 'transparent';
+            }}
+            onMouseDown={e => {
+              e.preventDefault(); // prevent textarea blur
+              onSelect(opt);
+            }}
           >
-            {typeLabel(opt.type)}
-          </span>
-          <span className="truncate">{opt.label}</span>
-        </button>
-      ))}
+            <span
+              className="text-xs px-1.5 py-0.5 rounded-md font-medium shrink-0"
+              style={{ background: typeColor(opt.type) + '22', color: typeColor(opt.type) }}
+            >
+              {typeLabel(opt.type)}
+            </span>
+            <span className="truncate">{opt.label}</span>
+          </button>
+        ))
+      )}
     </div>
   );
 }

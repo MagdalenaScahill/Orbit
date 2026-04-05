@@ -31,6 +31,7 @@ export function CommandBar({ onNewNode, canAddNode }: CommandBarProps) {
   const [attachments, setAttachments] = useState<Array<{ type: 'image' | 'audio' | 'video'; data: string; name: string }>>([]);
   const [mention, setMention] = useState<MentionState>(DEFAULT_MENTION);
   const [mentionOptions, setMentionOptions] = useState<MentionOption[]>([]);
+  const [mentionLoading, setMentionLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Use refs to always have latest values inside handleSubmit (avoids stale closures)
   const inputRef = useRef(input);
@@ -44,8 +45,10 @@ export function CommandBar({ onNewNode, canAddNode }: CommandBarProps) {
   useEffect(() => {
     if (!mention.active) {
       setMentionOptions([]);
+      setMentionLoading(false);
       return;
     }
+    setMentionLoading(true);
     const search = async () => {
       const q = mention.query.toLowerCase();
       let nodes;
@@ -59,6 +62,7 @@ export function CommandBar({ onNewNode, canAddNode }: CommandBarProps) {
         .slice(0, 8)
         .map(n => ({ id: n.id, label: n.label, type: n.type }));
       setMentionOptions(filtered);
+      setMentionLoading(false);
     };
     search();
   }, [mention]);
@@ -212,11 +216,12 @@ export function CommandBar({ onNewNode, canAddNode }: CommandBarProps) {
         </div>
       )}
       <div className="flex gap-2 items-end relative">
-        {/* Mention dropdown — positioned above textarea */}
+        {/* Mention dropdown — show whenever mention is active */}
         {mention.active && (
           <div className="absolute left-0 right-12 bottom-full">
             <MentionDropdown
               options={mentionOptions}
+              loading={mentionLoading}
               onSelect={handleMentionSelect}
               onClose={() => setMention(DEFAULT_MENTION)}
               anchorRef={textareaRef}
