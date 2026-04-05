@@ -216,18 +216,16 @@ export function CommandBar({ onNewNode, canAddNode }: CommandBarProps) {
         </div>
       )}
       <div className="flex gap-2 items-end relative">
-        {/* Mention dropdown — show whenever mention is active */}
+        {/* Mention dropdown — fixed position, above textarea */}
         {mention.active && (
-          <div className="absolute left-0 right-12 bottom-full">
-            <MentionDropdown
-              options={mentionOptions}
-              loading={mentionLoading}
-              onSelect={handleMentionSelect}
-              onClose={() => setMention(DEFAULT_MENTION)}
-              anchorRef={textareaRef}
-              triggerChar={mention.triggerChar}
-            />
-          </div>
+          <MentionDropdown
+            options={mentionOptions}
+            loading={mentionLoading}
+            onSelect={handleMentionSelect}
+            onClose={() => setMention(DEFAULT_MENTION)}
+            anchorRef={textareaRef}
+            triggerChar={mention.triggerChar}
+          />
         )}
         <textarea
           ref={textareaRef}

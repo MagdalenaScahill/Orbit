@@ -20,6 +20,19 @@ interface MentionDropdownProps {
 export function MentionDropdown({ options, loading, onSelect, onClose, anchorRef, triggerChar }: MentionDropdownProps) {
   const { theme } = useTheme();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
+
+  // Calculate position from the anchor textarea's bounding rect
+  useEffect(() => {
+    if (anchorRef.current) {
+      const rect = anchorRef.current.getBoundingClientRect();
+      setPos({
+        top: rect.top - 8, // 8px gap above textarea
+        left: rect.left,
+        width: rect.width,
+      });
+    }
+  }, [anchorRef]);
 
   // Close on outside click
   useEffect(() => {
@@ -36,6 +49,8 @@ export function MentionDropdown({ options, loading, onSelect, onClose, anchorRef
     return () => document.removeEventListener('mousedown', handleClick);
   }, [onClose, anchorRef]);
 
+  if (!pos) return null;
+
   const typeColor = (type: string) => {
     if (type === 'person') return theme.accent;
     if (type === 'project') return theme.success ?? '#22c55e';
@@ -48,19 +63,21 @@ export function MentionDropdown({ options, loading, onSelect, onClose, anchorRef
     return '标签';
   };
 
-  // Always render the container when active — show loading or empty state
   return (
     <div
       ref={dropdownRef}
-      className="absolute z-50 rounded-xl shadow-2xl overflow-hidden"
       style={{
-        bottom: '100%',
-        left: 0,
-        marginBottom: 6,
-        minWidth: 200,
-        maxWidth: 300,
+        position: 'fixed',
+        // Render above the textarea; dropdown grows upward
+        bottom: `calc(100vh - ${pos.top}px)`,
+        left: pos.left,
+        width: Math.min(pos.width, 320),
+        zIndex: 9999,
         background: theme.panelBg,
         border: `1px solid ${theme.border}`,
+        borderRadius: 12,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+        overflow: 'hidden',
       }}
     >
       <div
@@ -76,14 +93,14 @@ export function MentionDropdown({ options, loading, onSelect, onClose, anchorRef
         </div>
       ) : options.length === 0 ? (
         <div className="px-3 py-2 text-xs" style={{ color: theme.textMuted }}>
-          {triggerChar === '@' ? '没有找到联系人，输入后回车新建' : '没有找到标签，输入后回车新建'}
+          {triggerChar === '@' ? '没有找到联系人，继续输入新建' : '没有找到标签，继续输入新建'}
         </div>
       ) : (
         options.map((opt) => (
           <button
             key={opt.id}
             className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors"
-            style={{ color: theme.text }}
+            style={{ color: theme.text, background: 'transparent' }}
             onMouseEnter={e => {
               (e.currentTarget as HTMLElement).style.background = theme.cardBg;
             }}
