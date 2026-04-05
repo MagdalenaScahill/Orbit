@@ -8,6 +8,7 @@ export interface Node {
   metadata: {
     role?: string;
     description?: string;
+    reminderAt?: number; // timestamp ms, optional reminder date
   };
   createdAt: number;
 }
