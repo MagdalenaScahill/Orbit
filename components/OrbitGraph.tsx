@@ -12,9 +12,12 @@ import { CustomNode } from './CustomNode';
 import { CommandBar } from './CommandBar';
 import { EntityPanel } from './EntityPanel';
 import { AuthButton } from './AuthButton';
+import { PaywallModal } from './PaywallModal';
 import { initMockData } from '@/lib/initData';
 import { Download, Upload, Search, Palette } from 'lucide-react';
 import { useTheme, themes } from './ThemeProvider';
+import { useProStatus } from '@/lib/useProStatus';
+import { FREE_NODE_LIMIT } from '@/lib/pro';
 
 const nodeTypes: NodeTypes = { custom: CustomNode };
 
@@ -24,8 +27,10 @@ export function OrbitGraph() {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showThemePicker, setShowThemePicker] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
   const { setCenter } = useReactFlow();
   const { theme, themeName, setThemeName } = useTheme();
+  const { isPro } = useProStatus();
 
   const dbNodes = useLiveQuery(() => db.nodes.toArray());
   const dbEdges = useLiveQuery(() => db.edges.toArray());
@@ -244,7 +249,23 @@ export function OrbitGraph() {
       </div>
 
       {/* Command Bar */}
-      <CommandBar onNewNode={() => {}} />
+      <CommandBar
+        canAddNode={() => isPro || (dbNodes?.length ?? 0) < FREE_NODE_LIMIT}
+        onNewNode={() => {
+          // Check paywall before allowing new nodes
+          if (!isPro && (dbNodes?.length ?? 0) >= FREE_NODE_LIMIT) {
+            setShowPaywall(true);
+          }
+        }}
+      />
+
+      {/* Paywall Modal */}
+      {showPaywall && (
+        <PaywallModal
+          nodeCount={dbNodes?.length ?? 0}
+          onClose={() => setShowPaywall(false)}
+        />
+      )}
 
       {/* Main layout: graph + right sidebar */}
       <div className="flex-1 flex overflow-hidden">

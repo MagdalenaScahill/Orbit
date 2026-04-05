@@ -9,6 +9,7 @@ import { MentionDropdown, MentionOption } from './MentionDropdown';
 
 interface CommandBarProps {
   onNewNode: () => void;
+  canAddNode?: () => boolean; // returns false if paywall should block
 }
 
 interface MentionState {
@@ -25,7 +26,7 @@ const DEFAULT_MENTION: MentionState = {
   triggerIndex: -1,
 };
 
-export function CommandBar({ onNewNode }: CommandBarProps) {
+export function CommandBar({ onNewNode, canAddNode }: CommandBarProps) {
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<Array<{ type: 'image' | 'audio' | 'video'; data: string; name: string }>>([]);
   const [mention, setMention] = useState<MentionState>(DEFAULT_MENTION);
@@ -128,6 +129,13 @@ export function CommandBar({ onNewNode }: CommandBarProps) {
 
   const handleSubmit = async () => {
     if (!input.trim()) return;
+
+    // Paywall check — if canAddNode returns false, abort and let parent show modal
+    if (canAddNode && !canAddNode()) {
+      onNewNode(); // triggers paywall in parent
+      return;
+    }
+
     const { persons, tags } = parseInput(input);
     const mentionedNodeIds: string[] = [];
 
